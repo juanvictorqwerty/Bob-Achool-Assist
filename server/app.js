@@ -17,7 +17,7 @@ app.listen(4000, async ()=>{
     await checkConnection();
     await createAllTables();
   }catch (error){
-    console.log(error)
+    console.error(error)
   }
 });
 export default app;

@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import {registerRegular} from '../services/authService.js'
 import {registerStaff} from '../services/authService.js'
-//import {loginUser} from '../services/authService.js'
+import {loginUser} from '../services/authService.js'
 
 dotenv.config();
 
@@ -38,5 +38,25 @@ export const register=async(req,res)=>{
             console.log(error)
             return res.status(500).json({success:false,message:"Something horrible happened"})
         }
+    }
+}
+
+export const login=async(req,res)=>{
+    const {email,password}=req.body;
+    if (!email||!password){
+        return res.status(400).json({success:false,message:"Password and email are required"})
+    }
+        const user={email,password};
+    try{
+        const response=await loginUser(email,password)
+        console.log(user)
+        if (response.success){
+            return res.status(200).json(response)
+        }else{
+            return res.status(400).json(response)
+        }
+    }catch (error){
+        console.error(error)
+        return res.status(500).json({success:false,message:"Something went wrong"})
     }
 }
