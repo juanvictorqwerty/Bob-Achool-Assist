@@ -25,7 +25,7 @@ export const register=async(req,res)=>{
         }
     }else{
         if (code!=process.env.Secret){
-            return res.status(400).json("Wrong code")
+            return res.status(400).json({success:false,message:"Wrong code"})
         }
         try{
             const response=await registerStaff(user)

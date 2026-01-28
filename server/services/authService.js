@@ -34,7 +34,7 @@ export const registerStaff=async(user)=>{
             role)
             values(?,?,?,?)`
 
-            const values=[user.name,user.email,hashedPassword,admin]
+            const values=[user.name,user.email,hashedPassword,"admin"]
             await pool.query(query,values)
             return{success:true,message:"Now login"}
 
