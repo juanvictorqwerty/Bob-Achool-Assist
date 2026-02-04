@@ -3,79 +3,153 @@ import { pool } from '../config/db.js';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid'; // Standard for binary(16) UUIDs
 import 'dotenv/config'; // or require('dotenv').config()
+import { checkUser } from '../services/checkUser.js';
 
-export const registerRegular=async(user)=>{
-    try{
-        const hashedPassword= await bcrypt.hash(user.password,10);
-        const query= `INSERT INTO users(
-            name,
-            email,
-            password,
-            role)
-            values(?,?,?,?)`
 
-            const values=[user.name,user.email,hashedPassword,"student"]
-            await pool.query(query,values)
-            return{success:true,message:"Now login"}
+export const registerUser=async(user)=>{
 
-    } catch (error){
-        console.error("Erreur dans registerRegular:", error.message);
-        return{success:false,message:"Something crashed"}
-    }
-}
-
-export const registerStaff=async(user)=>{
-    try{
-        const hashedPassword= await bcrypt.hash(user.password,10);
-        const query= `INSERT INTO users(
-            name,
-            email,
-            password,
-            role)
-            values(?,?,?,?)`
-
-            const values=[user.name,user.email,hashedPassword,"admin"]
-            await pool.query(query,values)
-            return{success:true,message:"Now login"}
-
-    } catch (error){
-        console.log(error)
-        return{success:false,message:"Something crashed"}
-    }
-}
-
-export const loginUser=async(email,password)=>{    
     try {
-    const [rows]=await pool.query(`SELECT * FROM users WHERE email=?`,[email]);
-    if (rows.length !==1){
-        return{success: false,message:"Invalid credentials"};
-    }
-    const user=rows[0];
-    //check password
-    const passwordMatch= await bcrypt.compare(password,user.password);
-    if (!passwordMatch){
-        return {success:false,message:"Wrong credentials"};
-    }
-    const sessionToken= jwt.sign({id:user.id},
-    process.env.JWT_SECRET,
-    )
-    const tokenId = uuidv4();
-    const insertQuery = `
-                            INSERT INTO token (id, user_id, token, created_at) 
-                            VALUES (UUID_TO_BIN(?), ?, ?, NOW())
-                        `;
+        const hashedPassword = await bcrypt.hash(user.password, 10);
+        const query = `INSERT INTO users (email, password) VALUES (?, ?)`;
 
-    // tokenId is a string -> needs UUID_TO_BIN
-    // user.id is a Buffer -> pass directly
-    await pool.query(insertQuery, [tokenId, user.id, sessionToken])
+            const values = [user.email, hashedPassword];
+            
+            const [insertResult] = await pool.query(query, values);
 
-    return { 
+            // Retrieve the inserted user's id from DB (users.id may be BINARY(16))
+            const userEmail = user.email;
+            const [rows] = await pool.query(`SELECT id FROM users WHERE email = ?`, [userEmail]);
+            if (!rows || rows.length === 0) {
+                console.error('Failed to retrieve user id after registration for email:', userEmail);
+                return { success: false, message: 'Internal error: could not retrieve user id' };
+            }
+
+            const userId = rows[0].id; // Buffer (BINARY(16)) or string
+
+            // For JWT payload use a hex representation if it's a Buffer, otherwise use the string directly
+            const userIdForJwt = Buffer.isBuffer(userId) ? userId.toString('hex') : userId;
+            const sessionToken = jwt.sign({ id: userIdForJwt }, process.env.JWT_SECRET);
+
+            // 4. Insert into DB
+            const tokenId = uuidv4();
+
+            // Insert token id as plain UUID string (no UUID_TO_BIN)
+            const insertQuery = `
+                INSERT INTO token (id, user_id, token, created_at)
+                VALUES (?, ?, ?, NOW())
+            `;
+            const params = [tokenId, userId, sessionToken];
+
+            await pool.query(insertQuery, params);
+
+            return { success: true, message: 'Welcome user', token: sessionToken }
+    }catch(error){
+        console.log(error)
+        return{success:false,message:"Something went wrong"}
+    };
+    ;
+}
+
+export const loginUser = async (email, password) => {
+    try {
+        // 1. Find user
+        const [rows] = await pool.query(`SELECT * FROM users WHERE email = ?`, [email]);
+        
+        if (rows.length !== 1) {
+            return { success: false, message: "Invalid credentials" };
+        }
+
+        const user = rows[0];
+
+        // 2. Check Password
+        const passwordMatch = await bcrypt.compare(password, user.password);
+        if (!passwordMatch) {
+            return { success: false, message: "Invalid credentials" };
+        }
+
+        // 3. Generate Token (Session or JWT)
+        const userId = user.id; // Buffer or string
+        const userIdForJwt = Buffer.isBuffer(userId) ? userId.toString('hex') : userId;
+        const sessionToken = jwt.sign({ id: userIdForJwt }, process.env.JWT_SECRET);
+
+        // 4. Insert into DB
+        const tokenId = uuidv4();
+
+        // Insert token id as plain UUID string (no UUID_TO_BIN)
+        const insertQuery = `
+            INSERT INTO token (id, user_id, token, created_at)
+            VALUES (?, ?, ?, NOW())
+        `;
+        const params = [tokenId, userId, sessionToken];
+
+        await pool.query(insertQuery, params);
+
+        return { 
             success: true, 
             message: "Welcome back", 
             token: sessionToken 
         };
-    }catch(error){
+
+    } catch (error) {
         console.error(error);
-        return{success:false,message:"Something horrible happened"}
+        return { success: false, message: "Something horrible happened" };
     }
+};
+
+export const logoutOneDevice=async(token)=>{
+    const isAllowed=await checkUser(token)
+    if (!isAllowed.success){
+        return{success:false,message:"You are not authorized to perform the action"};
+    }
+    try{
+        const query=`UPDATE token SET revoked_at=NOW() WHERE token=?`
+        const values=[token]
+        const [result]=await pool.query(query,values)
+        if (result.affectedRows===0){
+            return {success:false,message:"Token not found"}
+        }
+        return{success:true,message:"Token revoked"}
+    }catch(error){
+        console.error(error)
+        return{success:false,message:"Something went wrong"}
+    }
+}
+
+export const logoutAllDevices = async (token) => {
+    const isAllowed = await checkUser(token);
+    if (!isAllowed.success) {
+        return { success: false, message: "You are not authorized to perform the action" };
+    }
+    try {
+        // Step 1: Get user_id from the provided token
+        const [rows] = await pool.query(
+            `SELECT user_id FROM token WHERE token = ?`, 
+            [token]
+        );
+        
+        if (rows.length === 0) {
+            return { success: false, message: "Token not found" };
+        }
+        
+        const userId = rows[0].user_id;
+        
+        // Step 2: Revoke all active tokens for this user
+        const [result] = await pool.query(
+            `UPDATE token SET revoked_at = NOW() WHERE user_id = ? AND revoked_at IS NULL`, 
+            [userId]
+        );
+        
+        return { 
+            success: true, 
+            message: `All tokens revoked (${result.affectedRows} sessions)` 
+        };
+        
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Something went wrong" };
+    }
+}
+
+export const forgotPassword=async(user)=>{
+    console.log(user);
 }

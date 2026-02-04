@@ -1,53 +1,35 @@
 import dotenv from 'dotenv';
-import {registerRegular} from '../services/authService.js'
-import {registerStaff} from '../services/authService.js'
-import {loginUser} from '../services/authService.js'
+import { registerUser,loginUser,logoutOneDevice,logoutAllDevices } from '../services/authService.js';
 
 dotenv.config();
 
 export const register=async(req,res)=>{
-    const {name, email,password,code}=req.body;
-    if (!name||!email||!password){
+    const {email ,password}=req.body;
+    if ( !email || !password ){
         return res.status(400).json({success:false,message:"All fields are required"})
     }
-    const user={name,email,password}
-    if (!code){
-        try{
-            const response=await registerRegular(user)
-            if (response.success){
-                return res.status(200).json(response)
-            }else{
-                return res.status(400).json(response)
-            }
-        }catch(error){
-            console.log(error)
-            return res.status(500).json({success:false,message:"Something went wrong"})
+    const user = { email, password};
+
+    try {
+        const response=await registerUser(user)
+        if (response.success){
+            return res.status(200).json(response)
+        }else{
+            return res.status(400).json(response)
         }
-    }else{
-        if (code!=process.env.Secret){
-            return res.status(400).json({success:false,message:"Wrong code"})
-        }
-        try{
-            const response=await registerStaff(user)
-            if (response.success){
-                return res.status(200).json({success:true,message:"Accepted"})
-            }else{
-                return res.status(400).json({success:false,message:"Registration impossible"})
-            }
-        }catch(error){
-            console.log(error)
-            return res.status(500).json({success:false,message:"Something horrible happened"})
-        }
+    }catch (error){
+        console.log(error)
+        return res.status(500).json({success:false,message:"Something went wrong"})
     }
 }
 
 export const login=async(req,res)=>{
-    const {email,password}=req.body;
-    if (!email||!password){
-        return res.status(400).json({success:false,message:"Password and email are required"})
+    const {email, password}=req.body;
+    if (!email || !password){
+        return res.status(400).json({success:false,message:"password and email are required"})
     }
         const user={email,password};
-    try{
+    try {
         const response=await loginUser(email,password)
         console.log(user)
         if (response.success){
@@ -55,7 +37,43 @@ export const login=async(req,res)=>{
         }else{
             return res.status(400).json(response)
         }
-    }catch (error){
+    } catch (error){
+        console.log(error)
+        return res.status(500).json({success:false,message:"Something went wrong"})
+    }
+}
+
+export const logoutOneSession=async(req,res)=>{
+    const {token}=req.body;
+    if (!token){
+        return res.status(400).json({success:false,message:"Token is required"})
+    }
+    try{
+        const response=await logoutOneDevice(token)
+        if (response.success){
+            return res.status(200).json(response)
+        }else{
+            return res.status(400).json(response)
+        }
+    }catch(error){
+        console.error(error)
+        return res.status(500).json({success:false,message:"Something went wrong"})
+    }
+}
+
+export const logoutAllSessions=async(req,res)=>{
+    const {token}=req.body;
+    if (!token){
+        return res.status(400).json({success:false,message:"Token is required"})
+    }
+    try{
+        const response=await logoutAllDevices(token)
+        if (response.success){
+            return res.status(200).json(response)
+        }else{
+            return res.status(400).json(response)
+        }
+    }catch(error){
         console.error(error)
         return res.status(500).json({success:false,message:"Something went wrong"})
     }
