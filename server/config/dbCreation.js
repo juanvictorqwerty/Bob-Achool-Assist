@@ -1,19 +1,18 @@
 import {pool} from './db.js'
 
 const userTableCreation= `CREATE TABLE IF NOT EXISTS users(
-                            id BINARY(16) PRIMARY KEY DEFAULT (UUID_TO_BIN(UUID())),
-                            name VARCHAR(50) NOT NULL,
+                            id VARCHAR (255) PRIMARY KEY DEFAULT (UUID()),
                             email VARCHAR(100) NOT NULL UNIQUE,
                             password VARCHAR(255) NOT NULL,
-                            role VARCHAR(50),
+                            role VARCHAR(50) DEFAULT "Student",
                             suspended boolean NOT NULL DEFAULT(false),
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                             updated_at TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                         )`
 
 const tokenTableCreation= `CREATE TABLE IF NOT EXISTS token(
-                                id BINARY(16) PRIMARY KEY DEFAULT (UUID_TO_BIN(UUID())),
-                                user_id BINARY(16) NOT NULL,
+                                id VARCHAR(255) PRIMARY KEY DEFAULT (UUID()),
+                                user_id VARCHAR(255) NOT NULL,
                                 token VARCHAR(255) NOT NULL,
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 revoked_at TIMESTAMP DEFAULT NULL,

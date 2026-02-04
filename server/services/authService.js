@@ -10,20 +10,15 @@ export const registerUser=async(user)=>{
 
     try {
         const hashedPassword = await bcrypt.hash(user.password, 10);
-        const query=`INSERT INTO staff (
-            name,
-            email,
-            password,
-            role)
-            VALUES(?,?,?,?)`
+        const query = `INSERT INTO users (email, password) VALUES (?, ?)`;
 
-            const values=[user.name,user.email,hashedPassword, user.role]
+            const values = [user.email, hashedPassword];
             
             const [insertResult] = await pool.query(query, values);
 
-            // Retrieve the inserted user's id from DB (staff.id is BINARY(16))
+            // Retrieve the inserted user's id from DB (users.id may be BINARY(16))
             const userEmail = user.email;
-            const [rows] = await pool.query(`SELECT id FROM staff WHERE email = ?`, [userEmail]);
+            const [rows] = await pool.query(`SELECT id FROM users WHERE email = ?`, [userEmail]);
             if (!rows || rows.length === 0) {
                 console.error('Failed to retrieve user id after registration for email:', userEmail);
                 return { success: false, message: 'Internal error: could not retrieve user id' };
@@ -38,21 +33,12 @@ export const registerUser=async(user)=>{
             // 4. Insert into DB
             const tokenId = uuidv4();
 
-            // Use a conditional INSERT so we support both BINARY(16) and VARCHAR user_id column types
-            let insertQuery, params;
-            if (Buffer.isBuffer(userId)) {
-                insertQuery = `
-                    INSERT INTO token (id, user_id, token, created_at) 
-                    VALUES (UUID_TO_BIN(?), ?, ?, NOW())
-                `;
-                params = [tokenId, userId, sessionToken];
-            } else {
-                insertQuery = `
-                    INSERT INTO token (id, user_id, token, created_at) 
-                    VALUES (?, ?, ?, NOW())
-                `;
-                params = [tokenId, userId, sessionToken];
-            }
+            // Insert token id as plain UUID string (no UUID_TO_BIN)
+            const insertQuery = `
+                INSERT INTO token (id, user_id, token, created_at)
+                VALUES (?, ?, ?, NOW())
+            `;
+            const params = [tokenId, userId, sessionToken];
 
             await pool.query(insertQuery, params);
 
@@ -67,7 +53,7 @@ export const registerUser=async(user)=>{
 export const loginUser = async (email, password) => {
     try {
         // 1. Find user
-        const [rows] = await pool.query(`SELECT * FROM staff WHERE email = ?`, [email]);
+        const [rows] = await pool.query(`SELECT * FROM users WHERE email = ?`, [email]);
         
         if (rows.length !== 1) {
             return { success: false, message: "Invalid credentials" };
@@ -89,21 +75,12 @@ export const loginUser = async (email, password) => {
         // 4. Insert into DB
         const tokenId = uuidv4();
 
-        // Support both BINARY(16) and VARCHAR user_id column types
-        let insertQuery, params;
-        if (Buffer.isBuffer(userId)) {
-            insertQuery = `
-                INSERT INTO token (id, user_id, token, created_at) 
-                VALUES (UUID_TO_BIN(?), ?, ?, NOW())
-            `;
-            params = [tokenId, userId, sessionToken];
-        } else {
-            insertQuery = `
-                INSERT INTO token (id, user_id, token, created_at) 
-                VALUES (?, ?, ?, NOW())
-            `;
-            params = [tokenId, userId, sessionToken];
-        }
+        // Insert token id as plain UUID string (no UUID_TO_BIN)
+        const insertQuery = `
+            INSERT INTO token (id, user_id, token, created_at)
+            VALUES (?, ?, ?, NOW())
+        `;
+        const params = [tokenId, userId, sessionToken];
 
         await pool.query(insertQuery, params);
 

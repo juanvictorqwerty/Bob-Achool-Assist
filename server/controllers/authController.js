@@ -4,15 +4,11 @@ import { registerUser,loginUser,logoutOneDevice,logoutAllDevices } from '../serv
 dotenv.config();
 
 export const register=async(req,res)=>{
-    const {name ,email ,password ,role ,code}=req.body;
-    if (!name || !email || !password || !role || !code){
+    const {email ,password}=req.body;
+    if ( !email || !password ){
         return res.status(400).json({success:false,message:"All fields are required"})
     }
-    if (code != process.env.Secret){
-        return res.status(400).json({success:false,message:"Invalid code"})
-    }
-    
-    const user = {name, email, password, role};
+    const user = { email, password};
 
     try {
         const response=await registerUser(user)
