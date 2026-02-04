@@ -1,6 +1,6 @@
-const CheckFees=()=>{
+const AllClearances=()=>{
     return(
         <div>All Clearances</div>
     )
 }
-export default CheckFees
+export default AllClearances
