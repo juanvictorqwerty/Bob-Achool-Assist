@@ -3,8 +3,9 @@ import './App.css'
 import { BrowserRouter,Routes,Route } from 'react-router';
 
 const LoginPage = lazy(() => import('./pages/login'));
-const SignUpPage=lazy(()=>import('./pages/signUpPage'))
-const HomePage= lazy(()=> import('./pages/homePage'))
+const SignUpPage=lazy(()=>import('./pages/signUpPage'));
+const HomePage= lazy(()=> import('./pages/homePage'));
+const MultiFileUpload=lazy(()=>import('./pages/uploadPage'))
 
 function App() {
   
@@ -15,6 +16,7 @@ function App() {
             <Route path='/' element={<HomePage/>}/>
             <Route path="/login" element={<LoginPage/>}/>
             <Route path='/sign-up' element={<SignUpPage/>}/>
+            <Route path='/upload' element={<MultiFileUpload/>}/>
           </Routes>
         </BrowserRouter>
     </>

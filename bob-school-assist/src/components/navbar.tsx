@@ -40,7 +40,7 @@ const NavBar = () => {
         <nav className="flex items-center justify-between px-8 py-4 bg-white border-b border-slate-200 shadow-sm">
         {/* Logo Section */}
         <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold">
             BSA
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-800">Bob School Assistant</span>
