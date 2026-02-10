@@ -3,14 +3,21 @@ import multer from "multer";
 import path from "path";
 import { uploadFiles, downloadFile } from "../controllers/upload_download.js";
 
+console.log('[ROUTES] upload_downloadRoute.js loading');
+
 const router = express.Router();
 
 // Multer Storage Config
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
+  destination: (req, file, cb) => {
+    console.log(`[MULTER] Storing file to: uploads/`);
+    cb(null, "uploads/");
+  },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+    const filename = file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname);
+    console.log(`[MULTER] Generated filename: ${filename}`);
+    cb(null, filename);
   }
 });
 
@@ -18,8 +25,10 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/vnd.openxmlformats-officedocument.presentationml.presentation"];
   if (allowedTypes.includes(file.mimetype)) {
+    console.log(`[MULTER] File type accepted: ${file.mimetype}`);
     cb(null, true);
   } else {
+    console.error(`[MULTER] File type rejected: ${file.mimetype}`);
     cb(new Error("Invalid file type. Only PDF and Images are allowed."), false);
   }
 };
@@ -31,7 +40,12 @@ const upload = multer({
 });
 
 // "files" is the key, 6 is the max count
+console.log('[ROUTES] Registering POST /upload-multiple');
 router.post("/upload-multiple", upload.array("files", 6), uploadFiles);
+
+console.log('[ROUTES] Registering GET /download/:fileId');
 router.get("/download/:fileId", downloadFile);
+
+console.log('[ROUTES] upload_downloadRoute.js loaded');
 
 export default router;

@@ -117,7 +117,29 @@ export const processUpload = async (token, files, collectionName) => {
   }
 };
 
-// Get file for download
+// Get file for download (public - no authentication required)
+export const getFileForDownloadPublic = async (fileId) => {
+  try {
+    // Get file metadata without user authorization check
+    const [files] = await pool.query(
+      `SELECT fm.* FROM file_metadata WHERE id = ?`,
+      [fileId]
+    );
+    
+    if (files.length === 0) {
+      throw { status: 404, message: 'File not found' };
+    }
+    
+    return {
+      path: files[0].file_path,
+      originalName: files[0].original_name
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Get file for download (with authorization)
 export const getFileForDownload = async (token, fileId) => {
   try {
     if (!token) {

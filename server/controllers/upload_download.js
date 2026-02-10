@@ -1,10 +1,14 @@
-import { processUpload, getFileForDownload } from "../services/uploadService.js";
+import { processUpload, getFileForDownloadPublic } from "../services/uploadService.js";
 
 const uploadFiles = async (req, res) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
     const files = req.files;
     const { collectionName } = req.body;
+
+    if (!token) {
+      return res.status(401).json({ message: 'Missing authorization token' });
+    }
 
     if (!files || files.length === 0) {
       return res.status(400).json({ message: "No files uploaded" });
@@ -25,9 +29,9 @@ const uploadFiles = async (req, res) => {
 const downloadFile = async (req, res) => {
     try {
         const { fileId } = req.params;
-        const token = req.headers.authorization?.split(" ")[1];
         
-        const fileData = await getFileForDownload(token, fileId);
+        // Public download - no token required
+        const fileData = await getFileForDownloadPublic(fileId);
         
         // Send the file to the client
         res.download(fileData.path, fileData.originalName);
