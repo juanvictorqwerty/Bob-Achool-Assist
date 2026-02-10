@@ -1,6 +1,8 @@
+import MultiFileUpload from "../components/uploadContainer"
+
 const UpLoadPages=()=>{
     return(
-        <div>Upload a page</div>
+        <MultiFileUpload/>
     )
 }
 export default UpLoadPages
