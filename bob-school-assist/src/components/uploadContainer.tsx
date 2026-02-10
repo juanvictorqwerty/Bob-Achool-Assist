@@ -1,11 +1,14 @@
 import { useState, useRef, type ChangeEvent } from "react";
+import { useNavigate } from "react-router";
 import { Upload, File, X,  Loader2, AlertCircle } from "lucide-react";
 
 const MultiFileUpload = ({ onUploadSuccess }: { onUploadSuccess?: () => void }) => {
   const [files, setFiles] = useState<File[]>([]);
+  const [collectionName, setCollectionName] = useState("");
   const [status, setStatus] = useState("idle"); // idle | uploading | success | error
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   const MAX_FILES = 6;
 
@@ -28,6 +31,11 @@ const MultiFileUpload = ({ onUploadSuccess }: { onUploadSuccess?: () => void }) 
 
   const handleUpload = async () => {
     if (files.length === 0) return;
+    if (!collectionName.trim()) {
+      setError("Please enter a collection name");
+      return;
+    }
+    
     setStatus("uploading");
     setError("");
 
@@ -35,6 +43,7 @@ const MultiFileUpload = ({ onUploadSuccess }: { onUploadSuccess?: () => void }) 
     files.forEach((file) => {
       formData.append("files", file); // Use the same key for multiple files
     });
+    formData.append("collectionName", collectionName);
 
     try {
       const response = await fetch("http://localhost:4000/api/upload-multiple", {
@@ -49,7 +58,9 @@ const MultiFileUpload = ({ onUploadSuccess }: { onUploadSuccess?: () => void }) 
       
       setStatus("success");
       setFiles([]); // Clear after success
+      setCollectionName(""); // Clear collection name after success
       if (onUploadSuccess) onUploadSuccess();
+      navigate("/");
     } catch (err) {
       setStatus("error");
       setError("Server error occurred during upload.");
@@ -61,6 +72,21 @@ const MultiFileUpload = ({ onUploadSuccess }: { onUploadSuccess?: () => void }) 
   return (
     <div className="w-full max-w-xl p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
       <h3 className="text-lg font-semibold mb-4 text-slate-800">Upload Documents</h3>
+      
+      {/* Collection Name Input */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-slate-700 mb-2">
+          Collection Name *
+        </label>
+        <input
+          type="text"
+          value={collectionName}
+          onChange={(e) => setCollectionName(e.target.value)}
+          placeholder="e.g., Math Assignment, Biology Project"
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all"
+          disabled={status === "uploading"}
+        />
+      </div>
       
       {/* Dropzone */}
       <div 

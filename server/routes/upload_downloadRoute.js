@@ -1,8 +1,9 @@
-const express = require("express");
-const multer = require("multer");
-const path = require("path");
+import express from "express";
+import multer from "multer";
+import path from "path";
+import { uploadFiles, downloadFile } from "../controllers/upload_download.js";
+
 const router = express.Router();
-const uploadController = require("../controllers/upload.controller");
 
 // Multer Storage Config
 const storage = multer.diskStorage({
@@ -15,7 +16,7 @@ const storage = multer.diskStorage({
 
 // Filter: Only PDF and Photos (JPEG, PNG)
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+  const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/vnd.openxmlformats-officedocument.presentationml.presentation"];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -30,7 +31,7 @@ const upload = multer({
 });
 
 // "files" is the key, 6 is the max count
-router.post("/upload", upload.array("files", 6), uploadController.uploadFiles);
-router.get("/download/:fileId", uploadController.downloadFile);
+router.post("/upload-multiple", upload.array("files", 6), uploadFiles);
+router.get("/download/:fileId", downloadFile);
 
-module.exports = router;
+export default router;
