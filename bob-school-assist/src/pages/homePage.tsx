@@ -3,6 +3,7 @@ import NavBar from "../components/navbar";
 import CollectionCard from "../components/collectionCards";
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Loader2, Grid, List } from 'lucide-react';
+import API_BASE_URL from '../config';
 
 interface Collection {
     id: string;
@@ -47,7 +48,7 @@ interface Collection {
           headers['Authorization'] = `Bearer ${token}`;
         }
         
-        const response = await fetch('http://localhost:4000/api/collections', {
+        const response = await fetch(`${API_BASE_URL}/api/collections`, {
           headers
         });
         if (!response.ok) throw new Error('Failed to fetch collections');
@@ -95,7 +96,7 @@ interface Collection {
         if (!confirm('Are you sure you want to delete this collection?')) return;
         
         try {
-        const response = await fetch(`http://localhost:4000/api/collections/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/api/collections/${id}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -130,7 +131,7 @@ interface Collection {
         }
         
         try {
-        const response = await fetch(`http://localhost:4000/api/collections/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/api/collections/${id}`, {
             method: 'PUT',
             headers: { 
                 'Content-Type': 'application/json',
@@ -152,7 +153,7 @@ interface Collection {
         const token = localStorage.getItem('token');
         
         // Download entire collection as ZIP
-        const downloadUrl = `http://localhost:4000/api/download-collection/${collection.id}/zip`;
+        const downloadUrl = `${API_BASE_URL}/api/download-collection/${collection.id}/zip`;
         
         // Create anchor element to trigger download
         const a = document.createElement('a');

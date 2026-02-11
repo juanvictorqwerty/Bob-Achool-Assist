@@ -1,6 +1,7 @@
 import { useState, useRef, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
 import { Upload, File, X,  Loader2, AlertCircle } from "lucide-react";
+import API_BASE_URL from "../config";
 
 const MultiFileUpload = ({ onUploadSuccess }: { onUploadSuccess?: () => void }) => {
   const [files, setFiles] = useState<File[]>([]);
@@ -46,7 +47,7 @@ const MultiFileUpload = ({ onUploadSuccess }: { onUploadSuccess?: () => void }) 
     formData.append("collection_name", collectionName);
 
     try {
-      const response = await fetch("http://localhost:4000/api/upload-multiple", {
+      const response = await fetch(`${API_BASE_URL}/api/upload-multiple`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
