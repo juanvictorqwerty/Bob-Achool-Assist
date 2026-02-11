@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import NavBar from "../components/navbar";
 import CollectionCard from "../components/collectionCards";
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Loader2, Grid, List } from 'lucide-react';
 
 interface Collection {
@@ -97,7 +98,7 @@ interface Collection {
         const response = await fetch(`http://localhost:4000/api/collections/${id}`, {
             method: 'DELETE',
             headers: {
-              'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${token}`
             }
         });
         if (!response.ok) throw new Error('Failed to delete');
@@ -111,8 +112,8 @@ interface Collection {
     const handleEdit = (collection: Collection) => {
         const token = localStorage.getItem('token');
         if (!token) {
-          alert('You must be logged in to edit collections');
-          return;
+            alert('You must be logged in to edit collections');
+            return;
         }
         
         const newName = prompt('Enter new collection name:', collection.collection_name);
@@ -124,16 +125,16 @@ interface Collection {
     const updateCollectionName = async (id: string, newName: string) => {
         const token = localStorage.getItem('token');
         if (!token) {
-          alert('You must be logged in to edit collections');
-          return;
+            alert('You must be logged in to edit collections');
+            return;
         }
         
         try {
         const response = await fetch(`http://localhost:4000/api/collections/${id}`, {
             method: 'PUT',
             headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ collection_name: newName })
         });
@@ -168,9 +169,19 @@ interface Collection {
         document.body.removeChild(a);
     };
 
+    const handleNewCollection = () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            Navigate('/login');
+            return;
+        }
+        Navigate('/upload');
+    };
+
     const filteredCollections = collections.filter(c => 
         c.collection_name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+    const Navigate = useNavigate();
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -186,7 +197,9 @@ interface Collection {
                 </p>
             </div>
             
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm">
+            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
+            onClick={handleNewCollection}
+            >
                 <Plus size={20} />
                 New Collection
             </button>
