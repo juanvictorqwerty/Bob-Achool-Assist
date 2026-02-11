@@ -168,3 +168,17 @@ export const getFileForDownload = async (token, fileId) => {
     throw error;
   }
 };
+
+// Get all files in a collection (public - no auth required)
+export const getCollectionFiles = async (token, collectionId) => {
+  try {
+    const [files] = await pool.query(
+      `SELECT * FROM file_metadata WHERE collection_id = ? ORDER BY uploaded_at DESC`,
+      [collectionId]
+    );
+    
+    return files;
+  } catch (error) {
+    throw error;
+  }
+};

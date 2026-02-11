@@ -1,6 +1,7 @@
-import { processUpload, getFileForDownloadPublic } from '../services/uploadService.js';
+import { processUpload, getFileForDownloadPublic, getCollectionFiles } from '../services/uploadService.js';
 import fs from 'fs';
 import path from 'path';
+import archiver from 'archiver';
 
 // Upload multiple files
 export const uploadFiles = async (req, res) => {
@@ -128,6 +129,89 @@ export const downloadFile = async (req, res) => {
       res.status(error.status || 500).json({
         success: false,
         message: error.message || 'Download failed'
+      });
+    }
+  }
+};
+
+// Download entire collection as ZIP
+export const downloadCollectionZip = async (req, res) => {
+  try {
+    const { collectionId } = req.params;
+    const token = req.query.token;
+    
+    console.log('[ZIP] Request for collection ID:', collectionId);
+    
+    if (!collectionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Collection ID is required'
+      });
+    }
+
+    // Get collection with files (public endpoint - no auth required)
+    const files = await getCollectionFiles(null, collectionId);
+    
+    if (!files || files.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No files found in collection'
+      });
+    }
+
+    console.log(`[ZIP] Found ${files.length} files to zip`);
+
+    // Set headers for ZIP download
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="collection-${collectionId}.zip"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    // Create ZIP archive
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Best compression
+    });
+
+    // Handle archive errors
+    archive.on('error', (err) => {
+      console.error('[ZIP] Archive error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: 'Error creating ZIP archive'
+        });
+      }
+    });
+
+    // Pipe archive to response
+    archive.pipe(res);
+
+    // Add each file to the archive
+    for (const file of files) {
+      const filePath = file.file_path;
+      
+      if (!fs.existsSync(filePath)) {
+        console.error(`[ZIP] File not found: ${filePath}`);
+        continue;
+      }
+
+      // Use original filename in the archive
+      archive.file(filePath, { name: file.original_name });
+      console.log(`[ZIP] Added: ${file.original_name}`);
+    }
+
+    // Finalize the archive
+    await archive.finalize();
+    
+    console.log('[ZIP] Archive completed');
+    
+  } catch (error) {
+    console.error('[ZIP] Error:', error);
+    
+    if (!res.headersSent) {
+      res.status(error.status || 500).json({
+        success: false,
+        message: error.message || 'ZIP download failed'
       });
     }
   }

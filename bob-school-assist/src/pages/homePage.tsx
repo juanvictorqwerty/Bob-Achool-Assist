@@ -148,8 +148,24 @@ interface Collection {
     };
 
     const handleDownload = async (collection: Collection) => {
-        // This is handled inside CollectionCard, but you can add custom logic here
-        console.log('Downloading collection:', collection.collection_name);
+        const token = localStorage.getItem('token');
+        
+        // Download entire collection as ZIP
+        const downloadUrl = `http://localhost:4000/api/download-collection/${collection.id}/zip`;
+        
+        // Create anchor element to trigger download
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `${collection.collection_name}.zip`;
+        
+        // Add auth header if token exists (via query param for simplicity)
+        if (token) {
+            a.href += `?token=${encodeURIComponent(token)}`;
+        }
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     };
 
     const filteredCollections = collections.filter(c => 

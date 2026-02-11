@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
-import { uploadFiles, downloadFile } from "../controllers/upload_download.js";
+import { uploadFiles, downloadFile, downloadCollectionZip } from "../controllers/upload.js";
 
 console.log('[ROUTES] upload_downloadRoute.js loading');
 
@@ -45,6 +45,9 @@ router.post("/upload-multiple", upload.array("files", 6), uploadFiles);
 
 console.log('[ROUTES] Registering GET /download/:fileId');
 router.get("/download/:fileId", downloadFile);
+
+console.log('[ROUTES] Registering GET /download-collection/:collectionId/zip');
+router.get("/download-collection/:collectionId/zip", downloadCollectionZip);
 
 console.log('[ROUTES] upload_downloadRoute.js loaded');
 
