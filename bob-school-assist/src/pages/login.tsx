@@ -26,11 +26,8 @@ const LoginPage=()=>{
 
         const data = await response.json();
 
-      // Store token and role
+      // Store token (localStorage or httpOnly cookie)
         localStorage.setItem("token", data.token);
-        if (data.role) {
-            localStorage.setItem("userRole", data.role);
-        }
       // Redirect to dashboard or home
         window.location.href = "/";
     } catch (err) {

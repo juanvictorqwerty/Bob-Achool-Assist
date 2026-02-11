@@ -8,7 +8,6 @@ import authRoutes from './routes/authRoutes.js'
 import uploadRoutes from './routes/upload_downloadRoute.js'
 import collectionRoutes from './routes/collectionRoutes.js'
 import debugRoutes from './routes/debugRoutes.js'
-import adminRoutes from './routes/adminRoutes.js'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,8 +40,6 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 console.log('[SERVER] Routes being mounted...');
 app.use('/api/auth',authRoutes)
 console.log('[SERVER] Auth routes mounted');
-app.use('/api/admin', adminRoutes)
-console.log('[SERVER] Admin routes mounted');
 app.use('/api',uploadRoutes)
 console.log('[SERVER] Upload routes mounted');
 app.use('/api',collectionRoutes)
