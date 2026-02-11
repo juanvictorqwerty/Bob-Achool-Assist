@@ -117,7 +117,29 @@ export const processUpload = async (token, files, collectionName) => {
   }
 };
 
-// Get file for download
+// Get file for download (public - no authentication required)
+export const getFileForDownloadPublic = async (fileId) => {
+  try {
+    // Get file metadata without user authorization check
+    const [files] = await pool.query(
+      `SELECT * FROM file_metadata WHERE id = ?`,
+      [fileId]
+    );
+    
+    if (files.length === 0) {
+      throw { status: 404, message: 'File not found' };
+    }
+    
+    return {
+      path: files[0].file_path,
+      originalName: files[0].original_name
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Get file for download (with authorization)
 export const getFileForDownload = async (token, fileId) => {
   try {
     if (!token) {
@@ -128,9 +150,9 @@ export const getFileForDownload = async (token, fileId) => {
     
     // Get file metadata with authorization check
     const [files] = await pool.query(
-      `SELECT fm.* FROM file_metadata fm
+      `SELECT * FROM file_metadata 
        JOIN collections c ON fm.collection_id = c.id
-       WHERE fm.id = ? AND c.user_id = ?`,
+       WHERE id = ? AND c.user_id = ?`,
       [fileId, userId]
     );
     
@@ -142,6 +164,38 @@ export const getFileForDownload = async (token, fileId) => {
       path: files[0].file_path,
       originalName: files[0].original_name
     };
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Get all files in a collection (public - no auth required)
+export const getCollectionFiles = async (token, collectionId) => {
+  try {
+    const [files] = await pool.query(
+      `SELECT * FROM file_metadata WHERE collection_id = ? ORDER BY uploaded_at DESC`,
+      [collectionId]
+    );
+    
+    return files;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Get collection details by ID
+export const getCollectionById = async (collectionId) => {
+  try {
+    const [collections] = await pool.query(
+      `SELECT * FROM collections WHERE id = ?`,
+      [collectionId]
+    );
+    
+    if (collections.length === 0) {
+      throw { status: 404, message: 'Collection not found' };
+    }
+    
+    return collections[0];
   } catch (error) {
     throw error;
   }

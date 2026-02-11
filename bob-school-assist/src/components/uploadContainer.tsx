@@ -43,7 +43,7 @@ const MultiFileUpload = ({ onUploadSuccess }: { onUploadSuccess?: () => void }) 
     files.forEach((file) => {
       formData.append("files", file); // Use the same key for multiple files
     });
-    formData.append("collectionName", collectionName);
+    formData.append("collection_name", collectionName);
 
     try {
       const response = await fetch("http://localhost:4000/api/upload-multiple", {
