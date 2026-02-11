@@ -1,7 +1,4 @@
 import { processUpload, getFileForDownloadPublic, getCollectionFiles, getCollectionById } from '../services/uploadService.js';
-import fs from 'fs';
-import path from 'path';
-import archiver from 'archiver';
 
 // Upload multiple files
 export const uploadFiles = async (req, res) => {
@@ -19,22 +16,11 @@ export const uploadFiles = async (req, res) => {
     console.log('[UPLOAD] Success:', result);
     res.status(200).json({
       success: true,
-      message: 'Files uploaded successfully',
+      message: 'Files uploaded successfully to Cloudinary',
       data: result
     });
   } catch (error) {
     console.error('[UPLOAD] Error:', error);
-    
-    // Clean up uploaded files on error
-    if (req.files) {
-      req.files.forEach(file => {
-        try {
-          fs.unlinkSync(file.path);
-        } catch (unlinkError) {
-          console.error('[UPLOAD] Failed to delete file:', unlinkError);
-        }
-      });
-    }
     
     res.status(error.status || 500).json({
       success: false,
@@ -60,9 +46,19 @@ export const downloadFile = async (req, res) => {
     // Get file metadata
     const fileData = await getFileForDownloadPublic(fileId);
     
-    console.log('[DOWNLOAD] File path:', fileData.path);
     console.log('[DOWNLOAD] Original name:', fileData.originalName);
+    console.log('[DOWNLOAD] Is Cloudinary:', fileData.isCloudinary);
 
+    // For Cloudinary files, redirect to the URL
+    if (fileData.isCloudinary && fileData.url) {
+      console.log('[DOWNLOAD] Redirecting to Cloudinary URL');
+      return res.redirect(fileData.url);
+    }
+
+    // For local files, stream from disk
+    const fs = await import('fs');
+    const path = await import('path');
+    
     // Check if file exists
     if (!fs.existsSync(fileData.path)) {
       console.error('[DOWNLOAD] File not found on disk:', fileData.path);
@@ -167,6 +163,10 @@ export const downloadCollectionZip = async (req, res) => {
     
     console.log(`[ZIP] Found ${files.length} files to zip`);
 
+    // Check if file_path is a Cloudinary URL (starts with https://)
+    const cloudinaryFiles = files.filter(f => f.file_path && f.file_path.startsWith('https://'));
+    const localFiles = files.filter(f => !f.file_path || !f.file_path.startsWith('https://'));
+
     // Set headers for ZIP download using collection original name
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(sanitizedCollectionName)}.zip"`);
@@ -174,6 +174,7 @@ export const downloadCollectionZip = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     // Create ZIP archive
+    const archiver = (await import('archiver')).default;
     const archive = archiver('zip', {
       zlib: { level: 9 } // Best compression
     });
@@ -192,18 +193,59 @@ export const downloadCollectionZip = async (req, res) => {
     // Pipe archive to response
     archive.pipe(res);
 
-    // Add each file to the archive
-    for (const file of files) {
-      const filePath = file.file_path;
+    // Add local files to the archive
+    if (localFiles.length > 0) {
+      const fs = await import('fs');
       
-      if (!fs.existsSync(filePath)) {
-        console.error(`[ZIP] File not found: ${filePath}`);
-        continue;
-      }
+      for (const file of localFiles) {
+        const filePath = file.file_path;
+        
+        if (!fs.existsSync(filePath)) {
+          console.error(`[ZIP] File not found: ${filePath}`);
+          continue;
+        }
 
-      // Use original filename in the archive
-      archive.file(filePath, { name: file.original_name });
-      console.log(`[ZIP] Added: ${file.original_name}`);
+        archive.file(filePath, { name: file.original_name });
+        console.log(`[ZIP] Added local file: ${file.original_name}`);
+      }
+    }
+
+    // Fetch Cloudinary files and add to archive
+    if (cloudinaryFiles.length > 0) {
+      const https = await import('https');
+      const http = await import('http');
+      
+      for (const file of cloudinaryFiles) {
+        const url = file.file_path; // Cloudinary URL
+        
+        try {
+          // Use the url as-is since Cloudinary provides direct download URLs
+          const response = await new Promise((resolve, reject) => {
+            const client = url.startsWith('https://') ? https : http;
+            client.get(url, (res) => {
+              if (res.statusCode === 301 || res.statusCode === 302) {
+                // Handle redirect
+                client.get(res.headers.location, (redirectRes) => {
+                  let data = [];
+                  redirectRes.on('data', (chunk) => data.push(chunk));
+                  redirectRes.on('end', () => resolve(Buffer.concat(data)));
+                  redirectRes.on('error', reject);
+                }).on('error', reject);
+              } else {
+                let data = [];
+                res.on('data', (chunk) => data.push(chunk));
+                res.on('end', () => resolve(Buffer.concat(data)));
+                res.on('error', reject);
+              }
+            }).on('error', reject);
+          });
+          
+          archive.append(response, { name: file.original_name });
+          console.log(`[ZIP] Added Cloudinary file: ${file.original_name}`);
+        } catch (fetchError) {
+          console.error(`[ZIP] Failed to fetch Cloudinary file: ${url}`, fetchError);
+        }
+      }
     }
 
     // Finalize the archive
