@@ -49,7 +49,7 @@ const getOrCreateCollection = async (userId, collectionName) => {
   }
 };
 
-// Save file metadata to database
+// Save file metadata to database (Cloudinary version - stores URL in file_path)
 const saveFileMetadata = async (collectionId, file) => {
   try {
     const fileId = uuidv4();
@@ -59,10 +59,10 @@ const saveFileMetadata = async (collectionId, file) => {
       [
         fileId,
         collectionId,
-        file.filename,
         file.originalname,
-        file.path,
-        file.size,
+        file.originalname,
+        file.cloudinary?.url || '', // Store Cloudinary URL in file_path column
+        file.size || file.cloudinary?.size,
         file.mimetype
       ]
     );
@@ -97,12 +97,18 @@ export const processUpload = async (token, files, collectionName) => {
     // Save metadata for all files
     const uploadedFiles = [];
     for (const file of files) {
+      // Check if file was uploaded to Cloudinary
+      if (!file.cloudinary || !file.cloudinary.url) {
+        throw { status: 500, message: 'File was not uploaded to Cloudinary' };
+      }
+      
       const fileId = await saveFileMetadata(collectionId, file);
       uploadedFiles.push({
         fileId,
         fileName: file.originalname,
-        size: file.size,
-        mimeType: file.mimetype
+        size: file.cloudinary?.size || file.size,
+        mimeType: file.mimetype,
+        url: file.cloudinary.url
       });
     }
     
@@ -130,9 +136,16 @@ export const getFileForDownloadPublic = async (fileId) => {
       throw { status: 404, message: 'File not found' };
     }
     
+    const file = files[0];
+    
+    // Check if file_path is a Cloudinary URL (starts with https://)
+    const isCloudinaryUrl = file.file_path && file.file_path.startsWith('https://');
+    
     return {
-      path: files[0].file_path,
-      originalName: files[0].original_name
+      path: isCloudinaryUrl ? null : file.file_path,
+      url: isCloudinaryUrl ? file.file_path : null,
+      originalName: file.original_name,
+      isCloudinary: isCloudinaryUrl
     };
   } catch (error) {
     throw error;
@@ -160,9 +173,16 @@ export const getFileForDownload = async (token, fileId) => {
       throw { status: 404, message: 'File not found or access denied' };
     }
     
+    const file = files[0];
+    
+    // Check if file_path is a Cloudinary URL (starts with https://)
+    const isCloudinaryUrl = file.file_path && file.file_path.startsWith('https://');
+    
     return {
-      path: files[0].file_path,
-      originalName: files[0].original_name
+      path: isCloudinaryUrl ? null : file.file_path,
+      url: isCloudinaryUrl ? file.file_path : null,
+      originalName: file.original_name,
+      isCloudinary: isCloudinaryUrl
     };
   } catch (error) {
     throw error;
