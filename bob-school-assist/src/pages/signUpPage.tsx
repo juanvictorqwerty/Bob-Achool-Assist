@@ -22,8 +22,8 @@ const SignUpPage=()=>{
         });
 
     if (!response.ok) {
-        console.log(response);
-        throw new Error("Invalid credentials");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Registration failed");
         }
 
         const data = await response.json();

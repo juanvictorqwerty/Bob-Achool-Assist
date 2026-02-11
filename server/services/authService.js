@@ -44,10 +44,13 @@ export const registerUser=async(user)=>{
 
             return { success: true, message: 'Welcome user', token: sessionToken }
     }catch(error){
-        console.log(error)
-        return{success:false,message:"Something went wrong"}
+        console.error('Registration error:', error);
+        // Handle duplicate email error (MySQL error code ER_DUP_ENTRY)
+        if (error.code === 'ER_DUP_ENTRY') {
+            return { success: false, message: "Email already registered" };
+        }
+        return { success: false, message: "Something went wrong: " + error.message };
     };
-    ;
 }
 
 export const loginUser = async (email, password) => {
