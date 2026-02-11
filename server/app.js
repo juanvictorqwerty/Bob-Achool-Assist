@@ -17,7 +17,11 @@ const app=express();
 console.log('[SERVER] Express app created');
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: '*',
+  allowedHeaders: '*',
+}));
 
 // Request logging middleware - log EVERYTHING
 app.use((req, res, next) => {
