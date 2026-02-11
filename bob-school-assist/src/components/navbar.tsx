@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { LogOut, LogIn, ShieldAlert, Loader2 } from "lucide-react";
+import API_BASE_URL from "../config";
 
 const NavBar = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +18,7 @@ const NavBar = () => {
         const token = localStorage.getItem("token");
 
         try {
-        const response = await fetch(`http://localhost:4000/api/auth/${endpoint}`, {
+        const response = await fetch(`${API_BASE_URL}/api/auth/${endpoint}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ token }),

@@ -1,5 +1,6 @@
 import LoginComp from "../components/loginComp"
 import { useState } from "react";
+import API_BASE_URL from "../config";
 
 const LoginPage=()=>{
 
@@ -11,7 +12,7 @@ const LoginPage=()=>{
     setError("");
 
     try {
-        const response = await fetch("http://localhost:4000/api/auth/login-user", {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login-user`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

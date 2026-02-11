@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Download, Folder, FileText, Calendar, MoreVertical, Trash2, Edit } from 'lucide-react';
+import API_BASE_URL from '../config';
 
 interface FileMetadata {
   id: string;
@@ -74,7 +75,7 @@ interface CollectionCardProps {
         let collectionData = collection;
         if (!collection.files || collection.files.length === 0) {
             console.log('Fetching collection details...');
-            const response = await fetch(`http://localhost:4000/api/collections/${collection.id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/collections/${collection.id}`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             });
             
@@ -125,7 +126,7 @@ interface CollectionCardProps {
     const downloadFile = async (file: FileMetadata): Promise<void> => {
         console.log(`Downloading: ${file.original_name} (ID: ${file.id})`);
         
-        const response = await fetch(`http://localhost:4000/api/download/${file.id}`);
+        const response = await fetch(`${API_BASE_URL}/api/download/${file.id}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
