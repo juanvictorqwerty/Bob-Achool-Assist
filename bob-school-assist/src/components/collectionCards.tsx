@@ -51,23 +51,27 @@ interface CollectionCardProps {
     }: CollectionCardProps) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
 
     const handleDownload = async () => {
         if (isDownloading) return;
         
         setIsDownloading(true);
+        setDownloadProgress({ current: 0, total: 0 });
+        
         try {
-        if (onDownload) {
-            await onDownload(collection);
-        } else {
-            // Default download behavior - download all files as zip or individual files
-            await downloadCollection(collection);
-        }
+            if (onDownload) {
+                await onDownload(collection);
+            } else {
+                // Default download behavior - download all files as zip or individual files
+                await downloadCollection(collection);
+            }
         } catch (error) {
-        console.error('Download failed:', error);
-        alert('Failed to download collection');
+            console.error('Download failed:', error);
+            alert('Failed to download collection: ' + (error instanceof Error ? error.message : 'Unknown error'));
         } finally {
-        setIsDownloading(false);
+            setIsDownloading(false);
+            setDownloadProgress({ current: 0, total: 0 });
         }
     };
 
@@ -75,62 +79,93 @@ interface CollectionCardProps {
         const token = localStorage.getItem('token');
         
         // Fetch collection files if not already present
+        let collectionData = collection;
         if (!collection.files || collection.files.length === 0) {
-          const response = await fetch(`http://localhost:4000/api/collections/${collection.id}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
+            console.log('Fetching collection details...');
+            const response = await fetch(`http://localhost:4000/api/collections/${collection.id}`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Failed to fetch collection: ${response.status} - ${errorText}`);
             }
-          });
-          if (!response.ok) throw new Error('Failed to fetch collection');
-          collection = await response.json();
+            
+            collectionData = await response.json();
         }
         
-        // Download each file individually
-        if (collection.files && collection.files.length > 0) {
-          console.log(`Starting download of ${collection.files.length} files`);
-          for (const file of collection.files) {
-            await downloadFile(file);
-            // Add small delay between downloads to avoid browser blocking
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
+        // Check if there are files to download
+        if (!collectionData.files || collectionData.files.length === 0) {
+            alert('No files in this collection');
+            return;
+        }
+        
+        console.log(`Starting download of ${collectionData.files.length} files`);
+        setDownloadProgress({ current: 0, total: collectionData.files.length });
+        
+        // Download each file individually with better error handling
+        const errors: string[] = [];
+        for (let i = 0; i < collectionData.files.length; i++) {
+            const file = collectionData.files[i];
+            try {
+                await downloadFile(file);
+                setDownloadProgress({ current: i + 1, total: collectionData.files.length });
+                console.log(`Downloaded ${i + 1}/${collectionData.files.length}: ${file.original_name}`);
+                
+                // Longer delay between downloads to avoid browser blocking
+                if (i < collectionData.files.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            } catch (error) {
+                console.error(`Failed to download ${file.original_name}:`, error);
+                errors.push(file.original_name);
+            }
+        }
+        
+        // Show summary
+        if (errors.length > 0) {
+            alert(`Download completed with errors. Failed files:\n${errors.join('\n')}`);
         } else {
-          alert('No files in this collection');
+            console.log('All files downloaded successfully');
         }
     };
 
-    const downloadFile = async (file: FileMetadata) => {
-        try {
-            const response = await fetch(`http://localhost:4000/api/download/${file.id}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const blob = await response.blob();
-            console.log(`Blob created: ${file.original_name}, size: ${blob.size}`);
-            
-            // Create temporary URL for the blob
-            const url = URL.createObjectURL(blob);
-            
-            // Create anchor element
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = file.original_name;
-            a.style.display = 'none';
-            
-            // Append to body and click
-            document.body.appendChild(a);
-            console.log(`Clicking download for: ${file.original_name}`);
-            a.click();
-            
-            // Cleanup
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 100);
-        } catch (error) {
-            console.error(`Download failed for ${file.original_name}:`, error);
-            alert(`Failed to download ${file.original_name}`);
+    const downloadFile = async (file: FileMetadata): Promise<void> => {
+        console.log(`Downloading: ${file.original_name} (ID: ${file.id})`);
+        
+        const response = await fetch(`http://localhost:4000/api/download/${file.id}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
+        const blob = await response.blob();
+        
+        if (blob.size === 0) {
+            throw new Error('Downloaded file is empty');
+        }
+        
+        console.log(`Blob created: ${file.original_name}, size: ${blob.size} bytes`);
+        
+        // Create temporary URL for the blob
+        const url = URL.createObjectURL(blob);
+        
+        // Create anchor element and trigger download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.original_name;
+        
+        // Important: Add to DOM before clicking (some browsers require this)
+        document.body.appendChild(a);
+        
+        // Click to trigger download
+        a.click();
+        
+        // Cleanup after a short delay
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
     };
 
     return (
@@ -209,7 +244,12 @@ interface CollectionCardProps {
             {isDownloading ? (
                 <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Downloading...</span>
+                <span>
+                    {downloadProgress.total > 0 
+                        ? `Downloading ${downloadProgress.current}/${downloadProgress.total}...`
+                        : 'Downloading...'
+                    }
+                </span>
                 </>
             ) : (
                 <>

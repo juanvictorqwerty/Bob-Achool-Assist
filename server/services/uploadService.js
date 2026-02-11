@@ -122,7 +122,7 @@ export const getFileForDownloadPublic = async (fileId) => {
   try {
     // Get file metadata without user authorization check
     const [files] = await pool.query(
-      `SELECT fm.* FROM file_metadata WHERE id = ?`,
+      `SELECT * FROM file_metadata WHERE id = ?`,
       [fileId]
     );
     
@@ -150,9 +150,9 @@ export const getFileForDownload = async (token, fileId) => {
     
     // Get file metadata with authorization check
     const [files] = await pool.query(
-      `SELECT fm.* FROM file_metadata fm
+      `SELECT * FROM file_metadata 
        JOIN collections c ON fm.collection_id = c.id
-       WHERE fm.id = ? AND c.user_id = ?`,
+       WHERE id = ? AND c.user_id = ?`,
       [fileId, userId]
     );
     

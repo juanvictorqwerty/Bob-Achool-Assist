@@ -1,43 +1,134 @@
-import { processUpload, getFileForDownloadPublic } from "../services/uploadService.js";
+import { processUpload, getFileForDownloadPublic } from '../services/uploadService.js';
+import fs from 'fs';
+import path from 'path';
 
-const uploadFiles = async (req, res) => {
+// Upload multiple files
+export const uploadFiles = async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
+    console.log('[UPLOAD] Request received');
+    console.log('[UPLOAD] Files:', req.files ? req.files.length : 0);
+    console.log('[UPLOAD] Collection Name:', req.body.collection_name);
+
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const collectionName = req.body.collection_name;
     const files = req.files;
-    const { collectionName } = req.body;
 
-    if (!token) {
-      return res.status(401).json({ message: 'Missing authorization token' });
-    }
-
-    if (!files || files.length === 0) {
-      return res.status(400).json({ message: "No files uploaded" });
-    }
-
-    // Call service to process business logic
     const result = await processUpload(token, files, collectionName);
-
+    
+    console.log('[UPLOAD] Success:', result);
     res.status(200).json({
-      message: "Files uploaded successfully",
-      data: result,
+      success: true,
+      message: 'Files uploaded successfully',
+      data: result
     });
   } catch (error) {
-    res.status(error.status || 500).json({ message: error.message });
+    console.error('[UPLOAD] Error:', error);
+    
+    // Clean up uploaded files on error
+    if (req.files) {
+      req.files.forEach(file => {
+        try {
+          fs.unlinkSync(file.path);
+        } catch (unlinkError) {
+          console.error('[UPLOAD] Failed to delete file:', unlinkError);
+        }
+      });
+    }
+    
+    res.status(error.status || 500).json({
+      success: false,
+      message: error.message || 'Upload failed'
+    });
   }
 };
 
-const downloadFile = async (req, res) => {
-    try {
-        const { fileId } = req.params;
-        
-        // Public download - no token required
-        const fileData = await getFileForDownloadPublic(fileId);
-        
-        // Send the file to the client
-        res.download(fileData.path, fileData.originalName);
-    } catch (error) {
-        res.status(error.status || 500).json({ message: error.message });
+// Download file (public endpoint - no auth required)
+export const downloadFile = async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    
+    console.log('[DOWNLOAD] Request for file ID:', fileId);
+    
+    if (!fileId) {
+      return res.status(400).json({
+        success: false,
+        message: 'File ID is required'
+      });
     }
-};
 
-export { uploadFiles, downloadFile };
+    // Get file metadata
+    const fileData = await getFileForDownloadPublic(fileId);
+    
+    console.log('[DOWNLOAD] File path:', fileData.path);
+    console.log('[DOWNLOAD] Original name:', fileData.originalName);
+
+    // Check if file exists
+    if (!fs.existsSync(fileData.path)) {
+      console.error('[DOWNLOAD] File not found on disk:', fileData.path);
+      return res.status(404).json({
+        success: false,
+        message: 'File not found on server'
+      });
+    }
+
+    // Get file stats
+    const stats = fs.statSync(fileData.path);
+    console.log('[DOWNLOAD] File size:', stats.size, 'bytes');
+
+    // Determine content type based on file extension
+    const ext = path.extname(fileData.originalName).toLowerCase();
+    const contentTypeMap = {
+      '.pdf': 'application/pdf',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    };
+    
+    const contentType = contentTypeMap[ext] || 'application/octet-stream';
+
+    // Set headers for download
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileData.originalName)}"`);
+    res.setHeader('Content-Length', stats.size);
+    res.setHeader('Cache-Control', 'no-cache');
+    
+    // CORS headers for cross-origin requests
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+
+    console.log('[DOWNLOAD] Sending file...');
+
+    // Stream the file
+    const fileStream = fs.createReadStream(fileData.path);
+    
+    fileStream.on('error', (error) => {
+      console.error('[DOWNLOAD] Stream error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: 'Error streaming file'
+        });
+      }
+    });
+
+    fileStream.on('end', () => {
+      console.log('[DOWNLOAD] File sent successfully');
+    });
+
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error('[DOWNLOAD] Error:', error);
+    
+    if (!res.headersSent) {
+      res.status(error.status || 500).json({
+        success: false,
+        message: error.message || 'Download failed'
+      });
+    }
+  }
+};
