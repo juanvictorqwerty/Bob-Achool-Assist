@@ -182,3 +182,21 @@ export const getCollectionFiles = async (token, collectionId) => {
     throw error;
   }
 };
+
+// Get collection details by ID
+export const getCollectionById = async (collectionId) => {
+  try {
+    const [collections] = await pool.query(
+      `SELECT * FROM collections WHERE id = ?`,
+      [collectionId]
+    );
+    
+    if (collections.length === 0) {
+      throw { status: 404, message: 'Collection not found' };
+    }
+    
+    return collections[0];
+  } catch (error) {
+    throw error;
+  }
+};

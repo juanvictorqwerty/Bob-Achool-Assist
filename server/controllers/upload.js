@@ -1,4 +1,4 @@
-import { processUpload, getFileForDownloadPublic, getCollectionFiles } from '../services/uploadService.js';
+import { processUpload, getFileForDownloadPublic, getCollectionFiles, getCollectionById } from '../services/uploadService.js';
 import fs from 'fs';
 import path from 'path';
 import archiver from 'archiver';
@@ -159,11 +159,17 @@ export const downloadCollectionZip = async (req, res) => {
       });
     }
 
+    // Get collection details including the name
+    const collection = await getCollectionById(collectionId);
+    
+    // Sanitize collection name for filename (remove invalid characters)
+    const sanitizedCollectionName = collection.collection_name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    
     console.log(`[ZIP] Found ${files.length} files to zip`);
 
-    // Set headers for ZIP download
+    // Set headers for ZIP download using collection original name
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="collection-${collectionId}.zip"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(sanitizedCollectionName)}.zip"`);
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
