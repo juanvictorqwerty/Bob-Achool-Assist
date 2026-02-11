@@ -21,19 +21,26 @@ const SignUpPage=()=>{
         body: JSON.stringify({ email, password }),
         });
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Registration failed");
-        }
-
         const data = await response.json();
 
-      // Store token (localStorage or httpOnly cookie)
+        if (!response.ok) {
+            // Show server error message, fallback to error field, then generic message
+            const errorMessage = data.message || data.error || "Registration failed";
+            console.error("Server error:", data); // Log full error for debugging
+            throw new Error(errorMessage);
+        }
+
+        // Store token (localStorage or httpOnly cookie)
         localStorage.setItem("token", data.token);
-      // Redirect to dashboard or home
+        // Redirect to dashboard or home
         window.location.href = "/";
     } catch (err) {
-        setError(err instanceof Error ? err.message : "Login failed");
+        console.error("SignUp error:", err);
+        if (err instanceof Error) {
+            setError(err.message);
+        } else {
+            setError("An unknown error occurred");
+        }
     } finally {
         setIsLoading(false);
     }

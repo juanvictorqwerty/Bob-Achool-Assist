@@ -18,8 +18,8 @@ export const register=async(req,res)=>{
             return res.status(400).json(response)
         }
     }catch (error){
-        console.log(error)
-        return res.status(500).json({success:false,message:"Something went wrong"})
+        console.error(error)
+        return res.status(500).json({success:false,message:error.message || "Something went wrong", error:error.message})
     }
 }
 
@@ -38,8 +38,8 @@ export const login=async(req,res)=>{
             return res.status(400).json(response)
         }
     } catch (error){
-        console.log(error)
-        return res.status(500).json({success:false,message:"Something went wrong"})
+        console.error(error)
+        return res.status(500).json({success:false,message:error.message || "Something went wrong", error:error.message})
     }
 }
 
@@ -57,7 +57,7 @@ export const logoutOneSession=async(req,res)=>{
         }
     }catch(error){
         console.error(error)
-        return res.status(500).json({success:false,message:"Something went wrong"})
+        return res.status(500).json({success:false,message:error.message || "Something went wrong", error:error.message})
     }
 }
 
@@ -75,6 +75,6 @@ export const logoutAllSessions=async(req,res)=>{
         }
     }catch(error){
         console.error(error)
-        return res.status(500).json({success:false,message:"Something went wrong"})
+        return res.status(500).json({success:false,message:error.message || "Something went wrong", error:error.message})
     }
 }
