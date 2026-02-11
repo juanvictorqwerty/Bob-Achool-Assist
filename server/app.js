@@ -51,8 +51,8 @@ console.log('[SERVER] Collection routes mounted');
 app.use('/api',debugRoutes)
 console.log('[SERVER] Debug routes mounted');
 
-app.listen(4000, async ()=>{
-  console.log("Server is running on port 4000");
+app.listen(process.env.PORT || 4000, async ()=>{
+  console.log(`Server is running on port ${process.env.PORT || 4000}`);
   try{
     await checkConnection();
     await createAllTables();
