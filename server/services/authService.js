@@ -10,9 +10,10 @@ export const registerUser=async(user)=>{
 
     try {
         const hashedPassword = await bcrypt.hash(user.password, 10);
-        const query = `INSERT INTO users (email, password) VALUES (?, ?)`;
+        // Default role is "Student" as defined in database schema
+        const query = `INSERT INTO users (email, password, role) VALUES (?, ?, ?)`;
 
-            const values = [user.email, hashedPassword];
+            const values = [user.email, hashedPassword, user.role || "Student"];
             
             const [insertResult] = await pool.query(query, values);
 
@@ -28,7 +29,8 @@ export const registerUser=async(user)=>{
 
             // For JWT payload use a hex representation if it's a Buffer, otherwise use the string directly
             const userIdForJwt = Buffer.isBuffer(userId) ? userId.toString('hex') : userId;
-            const sessionToken = jwt.sign({ id: userIdForJwt }, process.env.JWT_SECRET);
+            const role = user.role || "Student";
+            const sessionToken = jwt.sign({ id: userIdForJwt, role }, process.env.JWT_SECRET);
 
             // 4. Insert into DB
             const tokenId = uuidv4();
@@ -70,7 +72,8 @@ export const loginUser = async (email, password) => {
         // 3. Generate Token (Session or JWT)
         const userId = user.id; // Buffer or string
         const userIdForJwt = Buffer.isBuffer(userId) ? userId.toString('hex') : userId;
-        const sessionToken = jwt.sign({ id: userIdForJwt }, process.env.JWT_SECRET);
+        const role = user.role || "Student";
+        const sessionToken = jwt.sign({ id: userIdForJwt, role }, process.env.JWT_SECRET);
 
         // 4. Insert into DB
         const tokenId = uuidv4();
@@ -87,7 +90,8 @@ export const loginUser = async (email, password) => {
         return { 
             success: true, 
             message: "Welcome back", 
-            token: sessionToken 
+            token: sessionToken,
+            role 
         };
 
     } catch (error) {
@@ -153,3 +157,29 @@ export const logoutAllDevices = async (token) => {
 export const forgotPassword=async(user)=>{
     console.log(user);
 }
+
+// Update user role (admin only function)
+export const updateUserRole = async (email, newRole) => {
+    try {
+        // Check if user exists
+        const [rows] = await pool.query(`SELECT id FROM users WHERE email = ?`, [email]);
+        if (rows.length === 0) {
+            return { success: false, message: "User not found" };
+        }
+        
+        // Update the role
+        const [result] = await pool.query(`UPDATE users SET role = ? WHERE email = ?`, [newRole, email]);
+        
+        if (result.affectedRows === 0) {
+            return { success: false, message: "Failed to update user role" };
+        }
+        
+        return { 
+            success: true, 
+            message: `User role updated to ${newRole}` 
+        };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Something went wrong" };
+    }
+};

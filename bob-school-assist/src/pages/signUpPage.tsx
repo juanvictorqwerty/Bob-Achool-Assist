@@ -27,8 +27,11 @@ const SignUpPage=()=>{
 
         const data = await response.json();
 
-      // Store token (localStorage or httpOnly cookie)
+      // Store token and role
         localStorage.setItem("token", data.token);
+        if (data.role) {
+            localStorage.setItem("userRole", data.role);
+        }
       // Redirect to dashboard or home
         window.location.href = "/";
     } catch (err) {

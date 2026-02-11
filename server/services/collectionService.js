@@ -1,5 +1,6 @@
 import { pool } from '../config/db.js';
 import jwt from 'jsonwebtoken';
+import cloudinary from '../config/cloudinary.js';
 
 // Extract user ID from token
 const getUserIdFromToken = async (token) => {
@@ -118,6 +119,36 @@ export const deleteCollection = async (token, collectionId) => {
       throw { status: 404, message: 'Collection not found' };
     }
 
+    // Get all files in collection to delete from Cloudinary
+    const [files] = await pool.query(
+      `SELECT * FROM file_metadata WHERE collection_id = ?`,
+      [collectionId]
+    );
+
+    // Delete files from Cloudinary (if they are Cloudinary URLs)
+    for (const file of files) {
+      if (file.file_path && file.file_path.startsWith('https://')) {
+        try {
+          // Extract public_id from the Cloudinary URL
+          const urlParts = file.file_path.split('/');
+          const uploadIndex = urlParts.indexOf('upload');
+          if (uploadIndex !== -1) {
+            // Get everything after 'upload/vXXXX/' as the public_id
+            const versionIndex = urlParts.indexOf('v', uploadIndex);
+            if (versionIndex !== -1) {
+              const publicIdWithExtension = urlParts.slice(versionIndex + 1).join('/');
+              // Remove file extension from public_id
+              const publicId = publicIdWithExtension.replace(/\.[^/.]+$/, '');
+              await cloudinary.uploader.destroy(publicId);
+              console.log(`[CLOUDINARY] Deleted: ${publicId}`);
+            }
+          }
+        } catch (cloudinaryError) {
+          console.error('[CLOUDINARY] Failed to delete file:', cloudinaryError);
+        }
+      }
+    }
+
     // Delete collection (files will be deleted via CASCADE)
     await pool.query(
       `DELETE FROM collections WHERE id = ?`,
@@ -169,7 +200,28 @@ export const deleteFileFromCollection = async (token, fileId) => {
       throw { status: 404, message: 'File not found' };
     }
 
-    // Delete file from database (physical file cleanup can be done separately)
+    const file = files[0];
+
+    // Delete file from Cloudinary if it's a Cloudinary URL
+    if (file.file_path && file.file_path.startsWith('https://')) {
+      try {
+        const urlParts = file.file_path.split('/');
+        const uploadIndex = urlParts.indexOf('upload');
+        if (uploadIndex !== -1) {
+          const versionIndex = urlParts.indexOf('v', uploadIndex);
+          if (versionIndex !== -1) {
+            const publicIdWithExtension = urlParts.slice(versionIndex + 1).join('/');
+            const publicId = publicIdWithExtension.replace(/\.[^/.]+$/, '');
+            await cloudinary.uploader.destroy(publicId);
+            console.log(`[CLOUDINARY] Deleted: ${publicId}`);
+          }
+        }
+      } catch (cloudinaryError) {
+        console.error('[CLOUDINARY] Failed to delete file:', cloudinaryError);
+      }
+    }
+
+    // Delete file from database
     await pool.query(
       `DELETE FROM file_metadata WHERE id = ?`,
       [fileId]
