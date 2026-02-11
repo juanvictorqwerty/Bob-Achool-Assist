@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { pool } from '../config/db.js';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid'; // Standard for binary(16) UUIDs
-import 'dotenv/config'; // or require('dotenv').config()
+import { v4 as uuidv4 } from 'uuid';
+import 'dotenv/config';
 import { checkUser } from '../services/checkUser.js';
 
 
@@ -16,7 +16,7 @@ export const registerUser=async(user)=>{
             
             const [insertResult] = await pool.query(query, values);
 
-            // Retrieve the inserted user's id from DB (users.id may be BINARY(16))
+            // Retrieve the inserted user's id from DB
             const userEmail = user.email;
             const [rows] = await pool.query(`SELECT id FROM users WHERE email = ?`, [userEmail]);
             if (!rows || rows.length === 0) {
@@ -24,16 +24,13 @@ export const registerUser=async(user)=>{
                 return { success: false, message: 'Internal error: could not retrieve user id' };
             }
 
-            const userId = rows[0].id; // Buffer (BINARY(16)) or string
+            // userId is always a string (VARCHAR)
+            const userId = rows[0].id;
+            const sessionToken = jwt.sign({ id: userId }, process.env.JWT_SECRET);
 
-            // For JWT payload use a hex representation if it's a Buffer, otherwise use the string directly
-            const userIdForJwt = Buffer.isBuffer(userId) ? userId.toString('hex') : userId;
-            const sessionToken = jwt.sign({ id: userIdForJwt }, process.env.JWT_SECRET);
-
-            // 4. Insert into DB
+            // Insert token
             const tokenId = uuidv4();
 
-            // Insert token id as plain UUID string (no UUID_TO_BIN)
             const insertQuery = `
                 INSERT INTO token (id, user_id, token, created_at)
                 VALUES (?, ?, ?, NOW())
@@ -70,15 +67,13 @@ export const loginUser = async (email, password) => {
             return { success: false, message: "Invalid credentials" };
         }
 
-        // 3. Generate Token (Session or JWT)
-        const userId = user.id; // Buffer or string
-        const userIdForJwt = Buffer.isBuffer(userId) ? userId.toString('hex') : userId;
-        const sessionToken = jwt.sign({ id: userIdForJwt }, process.env.JWT_SECRET);
+        // 3. Generate Token
+        const userId = user.id; // Always a string (VARCHAR)
+        const sessionToken = jwt.sign({ id: userId }, process.env.JWT_SECRET);
 
-        // 4. Insert into DB
+        // 4. Insert token
         const tokenId = uuidv4();
 
-        // Insert token id as plain UUID string (no UUID_TO_BIN)
         const insertQuery = `
             INSERT INTO token (id, user_id, token, created_at)
             VALUES (?, ?, ?, NOW())
