@@ -2,6 +2,46 @@ import { pool } from '../config/db.js';
 import fs from 'fs';
 import path from 'path';
 
+// Debug endpoint - list all tables structure
+export const debugDbStructure = async (req, res) => {
+  console.log('\n[DEBUG] debugDbStructure endpoint hit');
+  try {
+    const tables = ['users', 'token', 'collections', 'file_metadata'];
+    const dbStructure = {};
+    
+    console.log('\n════════ DATABASE STRUCTURE ════════');
+    
+    for (const table of tables) {
+      try {
+        const [columns] = await pool.query(`DESCRIBE ${table}`);
+        dbStructure[table] = columns;
+        
+        console.log(`\n📋 Table: ${table}`);
+        columns.forEach(col => {
+          console.log(`  ${col.Field} - ${col.Type} ${col.Null === 'NO' ? 'NOT NULL' : ''} ${col.Key === 'PRI' ? '🔑 PRIMARY KEY' : ''}`);
+        });
+        
+        const [countResult] = await pool.query(`SELECT COUNT(*) as count FROM ${table}`);
+        const rowCount = countResult[0].count;
+        console.log(`  📊 Rows: ${rowCount}`);
+      } catch (tableError) {
+        dbStructure[table] = { error: tableError.message };
+        console.log(`  ❌ Error: ${tableError.message}`);
+      }
+    }
+    console.log('\n═══════════════════════════════════════\n');
+    
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      structure: dbStructure
+    });
+  } catch (error) {
+    console.error('[DEBUG] Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Debug endpoint - list all files in database
 export const debugListFiles = async (req, res) => {
   console.log('\n[DEBUG] debugListFiles endpoint hit');
