@@ -13,12 +13,18 @@ export const debugDbStructure = async (req, res) => {
     
     for (const table of tables) {
       try {
-        const [columns] = await pool.query(`DESCRIBE ${table}`);
+        // Use information_schema to avoid UUID conversion issues
+        const [columns] = await pool.query(
+          `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_TYPE 
+           FROM INFORMATION_SCHEMA.COLUMNS 
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`, 
+          [table]
+        );
         dbStructure[table] = columns;
         
         console.log(`\n📋 Table: ${table}`);
         columns.forEach(col => {
-          console.log(`  ${col.Field} - ${col.Type} ${col.Null === 'NO' ? 'NOT NULL' : ''} ${col.Key === 'PRI' ? '🔑 PRIMARY KEY' : ''}`);
+          console.log(`  ${col.COLUMN_NAME} - ${col.COLUMN_TYPE} ${col.IS_NULLABLE === 'NO' ? 'NOT NULL' : ''} ${col.COLUMN_KEY === 'PRI' ? '🔑 PRIMARY KEY' : ''}`);
         });
         
         const [countResult] = await pool.query(`SELECT COUNT(*) as count FROM ${table}`);
