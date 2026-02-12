@@ -6,10 +6,20 @@ import path from 'path';
 export const debugDbStructure = async (req, res) => {
   console.log('\n[DEBUG] debugDbStructure endpoint hit');
   try {
-    const tables = ['users', 'token', 'collections', 'file_metadata'];
     const dbStructure = {};
     
     console.log('\n════════ DATABASE STRUCTURE ════════');
+    
+    // First, test a simple query
+    try {
+      const [test] = await pool.query('SELECT 1 as test');
+      console.log('✓ Simple query works:', test);
+    } catch (testError) {
+      console.log('❌ Simple query failed:', testError.message);
+      throw new Error('Cannot execute any queries: ' + testError.message);
+    }
+    
+    const tables = ['users', 'token', 'collections', 'file_metadata'];
     
     for (const table of tables) {
       try {
@@ -27,12 +37,12 @@ export const debugDbStructure = async (req, res) => {
           console.log(`  ${col.COLUMN_NAME} - ${col.COLUMN_TYPE} ${col.IS_NULLABLE === 'NO' ? 'NOT NULL' : ''} ${col.COLUMN_KEY === 'PRI' ? '🔑 PRIMARY KEY' : ''}`);
         });
         
-        const [countResult] = await pool.query(`SELECT COUNT(*) as count FROM ${table}`);
+        const [countResult] = await pool.query(`SELECT COUNT(*) as count FROM \`${table}\``);
         const rowCount = countResult[0].count;
         console.log(`  📊 Rows: ${rowCount}`);
       } catch (tableError) {
         dbStructure[table] = { error: tableError.message };
-        console.log(`  ❌ Error: ${tableError.message}`);
+        console.log(`  ❌ Error on table ${table}: ${tableError.message}`);
       }
     }
     console.log('\n═══════════════════════════════════════\n');
